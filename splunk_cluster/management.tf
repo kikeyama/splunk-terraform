@@ -3,6 +3,10 @@ variable "splunk_download_file" {
   description = "Splunk tgz install file name (e.g. splunk-8.0.5-a1a6394cc5ae-Linux-x86_64.tgz)"
 }
 
+variable "key_pair" {
+  description = "ssh key pair name"
+}
+
 resource "random_integer" "az_index_lm" {
   min = 0
   max = length(data.aws_availability_zones.available.names) - 1
@@ -21,7 +25,7 @@ resource "random_integer" "az_index_ds" {
 resource "aws_instance" "cluster-licensemaster" {
   ami                    = data.aws_ami.ubuntu.id
   instance_type          = "t3.micro"
-  key_name               = "kikeyama-splunk"
+  key_name               = var.key_pair
   vpc_security_group_ids = [aws_security_group.cluster-base-sg.id]
   subnet_id              = aws_subnet.cluster-subnet-private[data.aws_availability_zones.available.names[random_integer.az_index_lm.result]].id
   user_data              = <<-EOF
@@ -79,7 +83,7 @@ resource "aws_instance" "cluster-licensemaster" {
 resource "aws_instance" "cluster-clustermaster" {
   ami                    = data.aws_ami.ubuntu.id
   instance_type          = "t3.micro"
-  key_name               = "kikeyama-splunk"
+  key_name               = var.key_pair
   vpc_security_group_ids = [aws_security_group.cluster-base-sg.id]
   subnet_id              = aws_subnet.cluster-subnet-private[data.aws_availability_zones.available.names[random_integer.az_index_cm.result]].id
   user_data              = <<-EOF
@@ -159,7 +163,7 @@ resource "aws_instance" "cluster-clustermaster" {
 resource "aws_instance" "cluster-deploymentserver" {
   ami                    = data.aws_ami.ubuntu.id
   instance_type          = "t3.micro"
-  key_name               = "kikeyama-splunk"
+  key_name               = var.key_pair
   vpc_security_group_ids = [aws_security_group.cluster-base-sg.id]
   subnet_id              = aws_subnet.cluster-subnet-private[data.aws_availability_zones.available.names[random_integer.az_index_ds.result]].id
   user_data              = <<-EOF

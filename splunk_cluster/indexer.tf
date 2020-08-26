@@ -40,7 +40,7 @@ resource "aws_instance" "cluster-indexers" {
   count                  = var.indexer_count
   ami                    = data.aws_ami.ubuntu.id
   instance_type          = "t3.micro"
-  key_name               = "kikeyama-splunk"
+  key_name               = var.key_pair
   vpc_security_group_ids = [aws_security_group.cluster-base-sg.id, aws_security_group.cluster-indexer-sg.id]
   subnet_id              = aws_subnet.cluster-subnet-private[data.aws_availability_zones.available.names[count.index % local.subnet_count]].id
   user_data              = <<-EOF

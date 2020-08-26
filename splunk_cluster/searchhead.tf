@@ -29,7 +29,7 @@ resource "random_integer" "az_index_sh" {
 resource "aws_instance" "cluster-searchhead" {
   ami                    = data.aws_ami.ubuntu.id
   instance_type          = "t3.micro"
-  key_name               = "kikeyama-splunk"
+  key_name               = var.key_pair
   vpc_security_group_ids = [aws_security_group.cluster-base-sg.id, aws_security_group.cluster-searchhead-sg.id]
   subnet_id              = aws_subnet.cluster-subnet-public[data.aws_availability_zones.available.names[random_integer.az_index_sh.result]].id
   user_data              = <<-EOF
