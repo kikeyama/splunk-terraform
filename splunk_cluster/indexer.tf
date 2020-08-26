@@ -67,30 +67,39 @@ resource "aws_instance" "cluster-indexers" {
 
     chown -R splunk:splunk /opt/splunk
 
-    sudo -u splunk /opt/splunk/bin/splunk start --accept-license --answer-yes --seed-passwd changeme
+    su - splunk
 
-    sudo -u splunk /opt/splunk/bin/splunk set default-hostname splunk-indexer-${count.index} -auth admin:changeme
-    sudo -u splunk /opt/splunk/bin/splunk set servername splunk-indexer-${count.index} -auth admin:changeme
+    /opt/splunk/bin/splunk start --accept-license --answer-yes --seed-passwd changeme
 
-    /opt/splunk/bin/splunk enable boot-start -user splunk
+    /opt/splunk/bin/splunk set default-hostname splunk-indexer-${count.index} -auth admin:changeme
+    /opt/splunk/bin/splunk set servername splunk-indexer-${count.index} -auth admin:changeme
 
     # License slave
-    sudo -u splunk /opt/splunk/bin/splunk edit licenser-localslave \
+    /opt/splunk/bin/splunk edit licenser-localslave \
     -master_uri https://licensemaster.${var.domain_prefix}-splunkcluster.internal:8089 \
     -auth admin:changeme
 
     # Configure replication
-    sudo -u splunk /opt/splunk/bin/splunk edit cluster-config -mode slave \
-    -master_uri https://clustermaster.${var.domain_prefix}-splunkcluster.internal:8089 \
-    -replication_port 8080 \
-    -secret idxcluster \
-    -auth admin:changeme
+    rc=1
+    while [ $rc != 0 ]
+    do
+      sleep 10
+      /opt/splunk/bin/splunk edit cluster-config -mode slave \
+      -master_uri https://clustermaster.${var.domain_prefix}-splunkcluster.internal:8089 \
+      -replication_port 8080 \
+      -secret idxcluster \
+      -auth admin:changeme; rc=$?
+    done
 
     # Enable receiving port from forwarders
-    sudo -u splunk /opt/splunk/bin/splunk enable listen 9997 -auth admin:changeme
+    /opt/splunk/bin/splunk enable listen 9997 -auth admin:changeme
 
     # Restart Splunk
-    sudo -u splunk /opt/splunk/bin/splunk restart
+    /opt/splunk/bin/splunk restart
+
+    # Enable boot start
+    exit
+    /opt/splunk/bin/splunk enable boot-start -user splunk
   EOF
 
   root_block_device {
@@ -111,10 +120,6 @@ resource "aws_instance" "cluster-indexers" {
     aws_route53_record.licensemaster,
     aws_route53_record.clustermaster
   ]
-}
-
-output "indexer-public-ip" {
-  value = aws_instance.cluster-indexers.*.public_ip
 }
 
 output "indexer-private-ip" {
