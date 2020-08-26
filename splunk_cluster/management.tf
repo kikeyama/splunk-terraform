@@ -52,19 +52,20 @@ resource "aws_instance" "cluster-licensemaster" {
 
     chown -R splunk:splunk /opt/splunk
 
-    sudo -u splunk /opt/splunk/bin/splunk start --accept-license --answer-yes --seed-passwd changeme
+    su - splunk -c "/opt/splunk/bin/splunk start --accept-license --answer-yes --seed-passwd changeme"
 
-    sudo -u splunk /opt/splunk/bin/splunk set default-hostname splunk-licensemaster -auth admin:changeme
-    sudo -u splunk /opt/splunk/bin/splunk set servername splunk-licensemaster -auth admin:changeme
-
-    /opt/splunk/bin/splunk enable boot-start -user splunk
+    su - splunk -c "/opt/splunk/bin/splunk set default-hostname splunk-licensemaster -auth admin:changeme"
+    su - splunk -c "/opt/splunk/bin/splunk set servername splunk-licensemaster -auth admin:changeme"
 
     # Set deploy poll
-    sudo -u splunk /opt/splunk/bin/splunk set deploy-poll deploymentserver.${var.domain_prefix}-splunkcluster.internal:8089 \
-    -auth admin:changeme
+    su - splunk -c "/opt/splunk/bin/splunk set deploy-poll deploymentserver.${var.domain_prefix}-splunkcluster.internal:8089 \
+    -auth admin:changeme"
 
     # Restart Splunk
-    sudo -u splunk /opt/splunk/bin/splunk restart
+    su - splunk -c "/opt/splunk/bin/splunk restart"
+
+    # Enable boot start
+    /opt/splunk/bin/splunk enable boot-start -user splunk
   EOF
 
   root_block_device {
@@ -110,36 +111,37 @@ resource "aws_instance" "cluster-clustermaster" {
 
     chown -R splunk:splunk /opt/splunk
 
-    sudo -u splunk /opt/splunk/bin/splunk start --accept-license --answer-yes --seed-passwd changeme
+    su - splunk -c "/opt/splunk/bin/splunk start --accept-license --answer-yes --seed-passwd changeme"
 
-    sudo -u splunk /opt/splunk/bin/splunk set default-hostname splunk-clustermaster -auth admin:changeme
-    sudo -u splunk /opt/splunk/bin/splunk set servername splunk-clustermaster -auth admin:changeme
-
-    /opt/splunk/bin/splunk enable boot-start -user splunk
+    su - splunk -c "/opt/splunk/bin/splunk set default-hostname splunk-clustermaster -auth admin:changeme"
+    su - splunk -c "/opt/splunk/bin/splunk set servername splunk-clustermaster -auth admin:changeme"
 
     # License slave
-    sudo -u splunk /opt/splunk/bin/splunk edit licenser-localslave \
+    su - splunk -c "/opt/splunk/bin/splunk edit licenser-localslave \
     -master_uri https://licensemaster.${var.domain_prefix}-splunkcluster.internal:8089 \
-    -auth admin:changeme
+    -auth admin:changeme"
 
     # Replication and search factor
-    sudo -u splunk /opt/splunk/bin/splunk edit cluster-config \
+    su - splunk -c "/opt/splunk/bin/splunk edit cluster-config \
     -mode master \
     -replication_factor 3 \
     -search_factor 2 \
     -secret idxcluster \
-    -auth admin:changeme
+    -auth admin:changeme"
 
     # Indexer Discovery
     echo '[indexer_discovery]
-    pass4SymmKey = idxforwarders' | sudo -u splunk tee -a /opt/splunk/etc/system/local/server.conf
+    pass4SymmKey = idxforwarders' | tee -a /opt/splunk/etc/system/local/server.conf
 
     # Set deploy poll
-    sudo -u splunk /opt/splunk/bin/splunk set deploy-poll deploymentserver.${var.domain_prefix}-splunkcluster.internal:8089 \
-    -auth admin:changeme
+    su - splunk -c "/opt/splunk/bin/splunk set deploy-poll deploymentserver.${var.domain_prefix}-splunkcluster.internal:8089 \
+    -auth admin:changeme"
 
     # Restart Splunk
-    sudo -u splunk /opt/splunk/bin/splunk restart
+    su - splunk -c "/opt/splunk/bin/splunk restart"
+
+    # Enable boot start
+    /opt/splunk/bin/splunk enable boot-start -user splunk
   EOF
 
   root_block_device {
@@ -190,20 +192,18 @@ resource "aws_instance" "cluster-deploymentserver" {
 
     chown -R splunk:splunk /opt/splunk
 
-    sudo -u splunk /opt/splunk/bin/splunk start --accept-license --answer-yes --seed-passwd changeme
+    su - splunk -c "/opt/splunk/bin/splunk start --accept-license --answer-yes --seed-passwd changeme"
 
-    sudo -u splunk /opt/splunk/bin/splunk set default-hostname splunk-deploymentserver -auth admin:changeme
-    sudo -u splunk /opt/splunk/bin/splunk set servername splunk-deploymentserver -auth admin:changeme
-
-    /opt/splunk/bin/splunk enable boot-start -user splunk
+    su - splunk -c "/opt/splunk/bin/splunk set default-hostname splunk-deploymentserver -auth admin:changeme"
+    su - splunk -c "/opt/splunk/bin/splunk set servername splunk-deploymentserver -auth admin:changeme"
 
     # License slave
-    sudo -u splunk /opt/splunk/bin/splunk edit licenser-localslave \
+    su - splunk -c "/opt/splunk/bin/splunk edit licenser-localslave \
     -master_uri https://licensemaster.${var.domain_prefix}-splunkcluster.internal:8089 \
-    -auth admin:changeme
+    -auth admin:changeme"
 
     # Edit outputs.conf to be deployed to splunk cluster components
-    sudo -u splunk mkdir -p /opt/splunk/etc/deployment-apps/cluster_base/local
+    su - splunk -c "mkdir -p /opt/splunk/etc/deployment-apps/cluster_base/local"
     echo '[indexAndForward]
     index = false
 
@@ -218,7 +218,7 @@ resource "aws_instance" "cluster-deploymentserver" {
 
     [indexer_discovery:idxc1]
     master_uri = https://clustermaster.${var.domain_prefix}-splunkcluster.internal:8089
-    pass4SymmKey = idxforwarders' | sudo -u splunk tee -a /opt/splunk/etc/deployment-apps/cluster_base/local/outputs.conf
+    pass4SymmKey = idxforwarders' | su - splunk -c "tee -a /opt/splunk/etc/deployment-apps/cluster_base/local/outputs.conf"
 
     # Setup Deployment Server
     echo '[serverClass:cluster_base:app:cluster_base]
@@ -227,19 +227,22 @@ resource "aws_instance" "cluster-deploymentserver" {
     stateOnClient = enabled
 
     [serverClass:cluster_base]
-    whitelist.0 = splunk-*' | sudo -u splunk tee -a /opt/splunk/etc/system/local/serverclass.conf
+    whitelist.0 = splunk-*' | su - splunk -c "tee -a /opt/splunk/etc/system/local/serverclass.conf"
 
     # Set deploy poll
-    sudo -u splunk /opt/splunk/bin/splunk set deploy-poll deploymentserver.${var.domain_prefix}-splunkcluster.internal:8089 \
-    -auth admin:changeme
+    su - splunk -c "/opt/splunk/bin/splunk set deploy-poll deploymentserver.${var.domain_prefix}-splunkcluster.internal:8089 \
+    -auth admin:changeme"
 
     # Restart Splunk
-    sudo -u splunk /opt/splunk/bin/splunk restart
+    su - splunk -c "/opt/splunk/bin/splunk restart"
 
     # Reload deploy poll
-    sudo -u splunk /opt/splunk/bin/splunk reload deploy-server \
+    su - splunk -c "/opt/splunk/bin/splunk reload deploy-server \
     -class cluster_base \
-    -auth admin:changeme
+    -auth admin:changeme"
+
+    # Enable boot start
+    /opt/splunk/bin/splunk enable boot-start -user splunk
   EOF
 
   root_block_device {

@@ -67,38 +67,35 @@ resource "aws_instance" "cluster-indexers" {
 
     chown -R splunk:splunk /opt/splunk
 
-    su - splunk
+    su - splunk -c "/opt/splunk/bin/splunk start --accept-license --answer-yes --seed-passwd changeme"
 
-    /opt/splunk/bin/splunk start --accept-license --answer-yes --seed-passwd changeme
-
-    /opt/splunk/bin/splunk set default-hostname splunk-indexer-${count.index} -auth admin:changeme
-    /opt/splunk/bin/splunk set servername splunk-indexer-${count.index} -auth admin:changeme
+    su - splunk -c "/opt/splunk/bin/splunk set default-hostname splunk-indexer-${count.index} -auth admin:changeme"
+    su - splunk -c "/opt/splunk/bin/splunk set servername splunk-indexer-${count.index} -auth admin:changeme"
 
     # License slave
-    /opt/splunk/bin/splunk edit licenser-localslave \
+    su - splunk -c "/opt/splunk/bin/splunk edit licenser-localslave \
     -master_uri https://licensemaster.${var.domain_prefix}-splunkcluster.internal:8089 \
-    -auth admin:changeme
+    -auth admin:changeme"
 
     # Configure replication
     rc=1
     while [ $rc != 0 ]
     do
       sleep 10
-      /opt/splunk/bin/splunk edit cluster-config -mode slave \
+      su - splunk -c "/opt/splunk/bin/splunk edit cluster-config -mode slave \
       -master_uri https://clustermaster.${var.domain_prefix}-splunkcluster.internal:8089 \
       -replication_port 8080 \
       -secret idxcluster \
-      -auth admin:changeme; rc=$?
+      -auth admin:changeme"; rc=$?
     done
 
     # Enable receiving port from forwarders
-    /opt/splunk/bin/splunk enable listen 9997 -auth admin:changeme
+    su - splunk -c "/opt/splunk/bin/splunk enable listen 9997 -auth admin:changeme"
 
     # Restart Splunk
-    /opt/splunk/bin/splunk restart
+    su - splunk -c "/opt/splunk/bin/splunk restart"
 
     # Enable boot start
-    exit
     /opt/splunk/bin/splunk enable boot-start -user splunk
   EOF
 

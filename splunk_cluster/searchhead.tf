@@ -57,18 +57,16 @@ resource "aws_instance" "cluster-searchhead" {
 
     chown -R splunk:splunk /opt/splunk
 
-    su - splunk
+    su - splunk -c "/opt/splunk/bin/splunk start --accept-license --answer-yes --seed-passwd changeme"
 
-    /opt/splunk/bin/splunk start --accept-license --answer-yes --seed-passwd changeme
-
-    /opt/splunk/bin/splunk set default-hostname splunk-searchhead -auth admin:changeme
-    /opt/splunk/bin/splunk set servername splunk-searchhead -auth admin:changeme
+    su - splunk -c "/opt/splunk/bin/splunk set default-hostname splunk-searchhead -auth admin:changeme"
+    su - splunk -c "/opt/splunk/bin/splunk set servername splunk-searchhead -auth admin:changeme"
 
     # License slave
     echo "License slave licensemaster=${aws_instance.cluster-licensemaster.private_ip}"
-    /opt/splunk/bin/splunk edit licenser-localslave \
+    su - splunk -c "/opt/splunk/bin/splunk edit licenser-localslave \
     -master_uri https://licensemaster.${var.domain_prefix}-splunkcluster.internal:8089 \
-    -auth admin:changeme
+    -auth admin:changeme"
 
     # Connect Cluster Master
     rc=1
@@ -76,24 +74,23 @@ resource "aws_instance" "cluster-searchhead" {
     do
       sleep 10
       echo "Connect Cluster Master clustermaster=${aws_instance.cluster-clustermaster.private_ip}"
-      /opt/splunk/bin/splunk edit cluster-config \
+      su - splunk -c "/opt/splunk/bin/splunk edit cluster-config \
       -mode searchhead \
       -master_uri https://clustermaster.${var.domain_prefix}-splunkcluster.internal:8089 \
       -secret idxcluster \
-      -auth admin:changeme; rc=$?
+      -auth admin:changeme"; rc=$?
     done
 
     # Set deploy poll
     echo "Set deploy poll deploymentserver=${aws_instance.cluster-deploymentserver.private_ip}"
-    /opt/splunk/bin/splunk set deploy-poll deploymentserver.${var.domain_prefix}-splunkcluster.internal:8089 \
-    -auth admin:changeme
+    su - splunk -c "/opt/splunk/bin/splunk set deploy-poll deploymentserver.${var.domain_prefix}-splunkcluster.internal:8089 \
+    -auth admin:changeme"
 
     # Restart Splunk
     echo "Restart Splunk"
-    /opt/splunk/bin/splunk restart
+    su - splunk -c "/opt/splunk/bin/splunk restart"
 
     # Enable boot start
-    exit
     /opt/splunk/bin/splunk enable boot-start -user splunk
   EOF
 
