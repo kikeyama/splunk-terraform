@@ -100,7 +100,10 @@ resource "aws_instance" "cluster-indexers" {
   EOF
 
   root_block_device {
+    # For reference: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ebs-volume-types.html
+#    volume_type = "io1"
     volume_size = 16
+#    iops        = 1600
   }
 
   tags = {
